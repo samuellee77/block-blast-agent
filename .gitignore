@@ -1,0 +1,10 @@
+/__pycache__
+/blockblast
+/logs
+/best models
+high_score.txt
+.DS_Store
+models/evaluations.npz
+/agents/trained
+*.pyc
+/agents/logs
