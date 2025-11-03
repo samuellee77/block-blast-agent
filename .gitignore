@@ -8,3 +8,4 @@ models/evaluations.npz
 /agents/trained
 *.pyc
 /agents/logs
+rl-env/

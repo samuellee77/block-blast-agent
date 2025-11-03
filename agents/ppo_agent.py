@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 from typing import Callable, Optional
 
 from stable_baselines3 import PPO
@@ -42,6 +43,7 @@ def _standard_ppo(env, **kwargs) -> PPO:
     return PPO(
         "MultiInputPolicy",
         env,
+        device="cpu", 
         verbose=1,
         tensorboard_log=LOGS_DIR,
         learning_rate=3e-4,
@@ -98,8 +100,9 @@ def train_ppo(
 
 if __name__ == "__main__":
     # Configuration
+    
     num_envs = 8
-    total_timesteps = 50_000_000
+    total_timesteps = 100000
     continue_training = False
 
     do_train = True
@@ -111,13 +114,12 @@ if __name__ == "__main__":
             num_envs=num_envs,
             total_timesteps=total_timesteps,
             continue_training=continue_training,
-            pretrained_path=pretrained,
+            pretrained_path=pretrained, 
         )
-
     if do_visualize:
         render_env = BlockGameEnv(render_mode="human")
         render_env = Monitor(render_env)
         model_file = os.path.join(MODELS_DIR, "final_ppo_model.zip")
         print(f"[ppo] Loading model from {model_file}")
-        agent = PPO.load(model_file, env=render_env)
+        agent = PPO.load(model_file, env=render_env, device="cpu")
         visualize_agent(render_env, agent, episodes=10, delay=0.2, use_masks=False)

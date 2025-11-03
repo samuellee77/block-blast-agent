@@ -67,6 +67,7 @@ def train_dqn(total_timesteps=100_000, save_path=None, continue_training=False):
         model = DQN(
             "MultiInputPolicy",
             env,
+            device="cpu",
             verbose=1,
             tensorboard_log=LOGS_DIR,
             learning_rate=1e-4,
@@ -108,25 +109,24 @@ def train_dqn(total_timesteps=100_000, save_path=None, continue_training=False):
 
 if __name__ == "__main__":
     # Hyperparameters
-    total_timesteps = 50_000_000
+    total_timesteps = 100000
     continue_training = False
     do_train = True
     do_visualize = True
-
+    start = time.time()
     if do_train:
         trained = train_dqn(
             total_timesteps=total_timesteps,
             save_path=MODELS_DIR,
             continue_training=continue_training,
         )
-
     if do_visualize:
         # Create a fresh environment for rendering
         env = BlockGameEnv(render_mode="human")
         env = Monitor(env)
         model_file = os.path.join(MODELS_DIR, "final_dqn_model.zip")
         print(f"Loading model from {model_file}")
-        loaded = DQN.load(model_file)
+        loaded = DQN.load(model_file, device="cpu")
         visualize_agent(
             env, loaded, episodes=1, delay=1, use_masks=False, window_title="DQN Agent"
         )
