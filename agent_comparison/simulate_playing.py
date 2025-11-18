@@ -19,6 +19,7 @@ sys.modules["numpy._core.numeric"] = numpy.core.numeric
 
 from blockblast_game.game_env import BlockGameEnv
 from agents.dqn_masked_agent import MaskableDQN  # Import the custom MaskableDQN class
+from agents.bdq_agent import BDQPolicyWrapper
 
 # Define directories
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -123,18 +124,6 @@ def main():
     # Load agents
     agents = {"Random": "random"}
 
-    # ppo_file = model_path("final_ppo_model.zip")
-    # if os.path.isfile(ppo_file):
-    #     agents["PPO"] = PPO.load(ppo_file)
-    # else:
-    #     logging.warning(f"PPO model not found at {ppo_file}")
-
-    # dqn_file = model_path("final_dqn_model.zip")
-    # if os.path.isfile(dqn_file):
-    #     agents["DQN"] = DQN.load(dqn_file)
-    # else:
-    #     logging.warning(f"DQN model not found at {dqn_file}")
-
     mp_file = model_path("final_masked_ppo_model.zip")
     if maskable_ppo_available and os.path.isfile(mp_file):
         agents["Masked PPO"] = MaskablePPO.load(mp_file)
@@ -148,12 +137,18 @@ def main():
         agents["Masked DQN"] = MaskableDQN.load(masked_dqn_file, env=env)
     else:
         logging.warning(f"Masked DQN model not found at {masked_dqn_file}")
+    
+    bdq_file = model_path("bdq_model.pt")
+    if os.path.isfile(bdq_file):
+        agents["BDQ"] = BDQPolicyWrapper(bdq_file, device="cpu")
+    else:
+        logging.warning(f"BDQ model not found at {bdq_file}")
 
     # Run experiments
     all_results = {}
     for name, agent in agents.items():
         logging.info(f"Starting runs for {name}")
-        use_masks = name in ["Masked PPO", "Masked DQN"]
+        use_masks = name in ["Masked PPO", "Masked DQN", "BDQ"]
         results = run_agent(
             env,
             agent,

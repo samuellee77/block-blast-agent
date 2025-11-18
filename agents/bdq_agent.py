@@ -1,5 +1,4 @@
-import os
-import random
+import os, csv, random
 from collections import deque
 
 import numpy as np
@@ -277,6 +276,8 @@ class BDQAgent:
         nn.utils.clip_grad_norm_(self.net.parameters(), 1.0)
         self.optim.step()
 
+        self.last_loss = loss.item()
+
         # 3) Polyak update of target network
         with th.no_grad():
             for p, tp in zip(self.net.parameters(), self.target.parameters()):
@@ -301,7 +302,8 @@ def train_bdq(
     obs, _ = env.reset()
 
     ep_return, ep_len = 0.0, 0
-
+    episode_scores = []
+    losses = []
     for step in range(1, total_steps + 1):
         # Use underlying BlockGameEnv for valid action / decode
         si, r, c = agent.select_action(env.env, obs)
@@ -322,22 +324,107 @@ def train_bdq(
         agent.train_step()
 
         if done or truncated:
+            print(f"[Episode ended] return={ep_return:.2f} length={ep_len}")
+            # Save to logs
+            episode_scores.append(ep_return)
             obs, _ = env.reset()
             ep_return, ep_len = 0.0, 0
 
         if step % log_every == 0:
+            loss_val = getattr(agent, "last_loss", None)
             print(
-                f"[BDQ] step={step}  "
+                f"[BDQ] step={step:,}  "
                 f"buffer={len(agent.buffer)}  "
-                f"eps={agent.epsilon():.3f}"
+                f"eps={agent.epsilon():.3f}  "
+                f"loss={loss_val:.5f}  "
+                f"latest_score={episode_scores[-1] if episode_scores else 0:.2f}"
             )
+
+            # Save history
+            if loss_val is not None:
+                losses.append((step, loss_val))
+
 
     # Save only the online network (you can also save target if you want)
     model_path = os.path.join(save_dir, "bdq_model.pt")
     th.save(agent.net.state_dict(), model_path)
     print(f"[BDQ] Training done. Saved model to {model_path}")
 
+    # Save losses
+    with open(os.path.join(save_dir, "bdq_loss_log.csv"), "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["step", "loss"])
+        writer.writerows(losses)
+
+    # Save episode scores
+    with open(os.path.join(save_dir, "bdq_score_log.csv"), "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["episode", "score"])
+        for i, score in enumerate(episode_scores):
+            writer.writerow([i, score])
+
+    print(f"[BDQ] Saved loss log and score log to {save_dir}")
+
+# ----------------------------------------------------------------------
+#  BDQ evaluation wrapper (for simulate_playing.py)
+# ----------------------------------------------------------------------
+class BDQPolicyWrapper:
+    """
+    Lightweight wrapper around a trained BDQ network so it looks like a
+    Stable-Baselines policy with a `.predict()` method returning a flat action.
+    """
+
+    def __init__(self, model_path: str, device: str = "cpu"):
+        self.device = th.device(device)
+        self.net = BDQ().to(self.device)
+        state_dict = th.load(model_path, map_location=self.device)
+        self.net.load_state_dict(state_dict)
+        self.net.eval()
+
+    @th.no_grad()
+    def predict(self, obs, action_masks=None, deterministic: bool = True):
+        """
+        obs: a single observation dict from BlockGameEnv._get_observation()
+        action_masks: optional np.bool_ array of shape (192,)
+        Returns: (action_int, None)
+        """
+        # Convert obs dict → torch batch of size 1
+        o = {
+            k: th.tensor(obs[k], dtype=th.float32, device=self.device).unsqueeze(0)
+            for k in obs
+        }
+
+        q_s, q_r, q_c = self.net(o)  # (1,3), (1,8), (1,8)
+        q_s = q_s[0].cpu().numpy()
+        q_r = q_r[0].cpu().numpy()
+        q_c = q_c[0].cpu().numpy()
+
+        # Enumerate all (shape,row,col) combos and optionally respect action_masks
+        best_action = None
+        best_q = -1e9
+
+        for shape_idx in range(3):
+            for row in range(8):
+                for col in range(8):
+                    flat = shape_idx * 64 + row * 8 + col
+                    if action_masks is not None and not action_masks[flat]:
+                        continue
+                    q = q_s[shape_idx] + q_r[row] + q_c[col]
+                    if q > best_q:
+                        best_q = q
+                        best_action = flat
+
+        # Fallback: if somehow no valid action was found
+        if best_action is None:
+            if action_masks is not None and action_masks.any():
+                valid = np.nonzero(action_masks)[0]
+                best_action = int(np.random.choice(valid))
+            else:
+                best_action = 0
+
+        return int(best_action), None
+
 
 if __name__ == "__main__":
     # You can lower this for a quick sanity test, e.g., 100_000
-    train_bdq(total_steps=1_000_000)
+    train_bdq(total_steps=500_000)
