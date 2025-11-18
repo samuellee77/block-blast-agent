@@ -119,7 +119,7 @@ def visualize_agent(
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
 
-            action_valid = info.get("action_valid", True)
+            action_valid = info.get("valid_placement", True)
             print(f"Action valid: {action_valid}, Reward: {reward:.2f}")
             print(f"Cumulative reward: {total_reward:.2f}")
 

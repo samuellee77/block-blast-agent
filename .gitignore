@@ -9,3 +9,4 @@ models/evaluations.npz
 *.pyc
 /agents/logs
 rl-env/
+/agents/models

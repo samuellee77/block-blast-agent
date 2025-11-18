@@ -123,17 +123,17 @@ def main():
     # Load agents
     agents = {"Random": "random"}
 
-    ppo_file = model_path("final_ppo_model.zip")
-    if os.path.isfile(ppo_file):
-        agents["PPO"] = PPO.load(ppo_file)
-    else:
-        logging.warning(f"PPO model not found at {ppo_file}")
+    # ppo_file = model_path("final_ppo_model.zip")
+    # if os.path.isfile(ppo_file):
+    #     agents["PPO"] = PPO.load(ppo_file)
+    # else:
+    #     logging.warning(f"PPO model not found at {ppo_file}")
 
-    dqn_file = model_path("final_dqn_model.zip")
-    if os.path.isfile(dqn_file):
-        agents["DQN"] = DQN.load(dqn_file)
-    else:
-        logging.warning(f"DQN model not found at {dqn_file}")
+    # dqn_file = model_path("final_dqn_model.zip")
+    # if os.path.isfile(dqn_file):
+    #     agents["DQN"] = DQN.load(dqn_file)
+    # else:
+    #     logging.warning(f"DQN model not found at {dqn_file}")
 
     mp_file = model_path("final_masked_ppo_model.zip")
     if maskable_ppo_available and os.path.isfile(mp_file):

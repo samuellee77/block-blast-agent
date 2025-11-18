@@ -174,26 +174,21 @@ class BlockGameEnv(gym.Env):
         Calculate the reward for the current action.
 
         """
-
         if not valid_placement:
-            return -0.5  # Reduced penalty
+            return -1.0            # was -0.5
 
-        # Base reward for valid placement
-        reward = 0.5
-
-        # Points gained
+        reward = 0.3               # was 0.5 (smaller base)
         points_gained = self.game_state.last_action_score
-        reward += 0.05 * points_gained  # Increased multiplier
-
-        # Lines cleared - boost this component
         lines_cleared = self.game_state.last_lines_cleared
-        reward += 1.0 * lines_cleared  # Increased multiplier
 
-        # Game over penalty - make less severe
+        reward += 0.10 * points_gained
+        reward += 1.5 * lines_cleared  # was 1.0
+
         if not old_game_over and self.game_state.game_over:
-            return -3.0  # Less severe
+            return -5.0             # was -3.0
 
         return reward
+
 
     def get_valid_actions(self):
         """Return a list of valid action indices."""
