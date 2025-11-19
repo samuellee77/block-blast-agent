@@ -324,7 +324,7 @@ def train_bdq(
         agent.train_step()
 
         if done or truncated:
-            print(f"[Episode ended] return={ep_return:.2f} length={ep_len}")
+            print(f"[Episode ended] step={step} return={ep_return:.2f} length={ep_len}")
             # Save to logs
             episode_scores.append(ep_return)
             obs, _ = env.reset()
