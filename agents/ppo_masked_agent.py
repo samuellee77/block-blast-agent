@@ -112,7 +112,7 @@ def train_masked_ppo(
 if __name__ == "__main__":
     # Configuration
     num_envs = 8
-    total_timesteps = 500_000
+    total_timesteps = 1000000
     continue_training = False
 
     do_train = True

@@ -65,7 +65,7 @@ plt.savefig(combined_fname)
 print(f"Saved {combined_fname}")
 
 # Detailed comparison: Random vs Masked PPO vs Masked DQN
-compare_agents = ["Random", "Masked PPO", "Masked DQN"]
+compare_agents = ["Random", "Masked PPO", "Masked DQN", "AlphaZero-MCTS"]
 subset_grouped = df[df["agent"].isin(compare_agents)].groupby("agent").mean()
 compare_metrics = [
     ("score", "Average Score"),
@@ -90,13 +90,14 @@ for metric, title in compare_metrics:
     plt.savefig(fname)
     print(f"Saved {fname}")
 
+
 # Original histogram: Random vs Masked PPO vs Masked DQN
 plt.figure()
-compare_agents = ["Random", "Masked PPO", "Masked DQN"]
+compare_agents = ["Random", "Masked PPO", "Masked DQN", "AlphaZero-MCTS"]
 for agent in compare_agents:
     scores = df[df["agent"] == agent]["score"]
     plt.hist(scores, bins=20, alpha=0.5, label=agent)
-plt.title("Score Distribution: Random vs Masked PPO vs Masked DQN")
+plt.title("Score Distribution: Random vs Masked PPO vs Masked DQN vs AlphaZero-MCTS")
 plt.xlabel("Score")
 plt.ylabel("Frequency")
 plt.legend()
@@ -105,35 +106,35 @@ hist_fname = os.path.join(RESULTS_DIR, "hist_scores_random_vs_masked.png")
 plt.savefig(hist_fname)
 print(f"Saved {hist_fname}")
 
-# New histogram: Masked PPO vs Masked DQN
-plt.figure()
-compare_agents = ["Masked PPO", "Masked DQN"]
-for agent in compare_agents:
-    scores = df[df["agent"] == agent]["score"]
-    plt.hist(scores, bins=20, alpha=0.5, label=agent)
-plt.title("Score Distribution: Masked PPO vs Masked DQN")
-plt.xlabel("Score")
-plt.ylabel("Frequency")
-plt.legend()
-plt.tight_layout()
-hist_fname = os.path.join(RESULTS_DIR, "hist_scores_masked_vs_dqn.png")
-plt.savefig(hist_fname)
-print(f"Saved {hist_fname}")
+# # New histogram: Masked PPO vs Masked DQN
+# plt.figure()
+# compare_agents = ["Masked PPO", "Masked DQN"]
+# for agent in compare_agents:
+#     scores = df[df["agent"] == agent]["score"]
+#     plt.hist(scores, bins=20, alpha=0.5, label=agent)
+# plt.title("Score Distribution: Masked PPO vs Masked DQN")
+# plt.xlabel("Score")
+# plt.ylabel("Frequency")
+# plt.legend()
+# plt.tight_layout()
+# hist_fname = os.path.join(RESULTS_DIR, "hist_scores_masked_vs_dqn.png")
+# plt.savefig(hist_fname)
+# print(f"Saved {hist_fname}")
 
-# Line plots over episodes for each metric
-all_line_metrics = [("score", "Score"), ("reward", "Reward")] + [
-    (m, m.replace("_", " ").title()) for m in combined_metrics
-]
-for metric_label, title in all_line_metrics:
-    plt.figure()
-    for agent in df["agent"].unique():
-        agent_df = df[df["agent"] == agent]
-        plt.plot(agent_df["episode"], agent_df[metric_label], label=agent)
-    plt.title(f"{title} per Episode")
-    plt.xlabel("Episode")
-    plt.ylabel(title)
-    plt.legend()
-    plt.tight_layout()
-    fname = os.path.join(RESULTS_DIR, f"per_episode_{metric_label}.png")
-    plt.savefig(fname)
-    print(f"Saved {fname}")
+# # Line plots over episodes for each metric
+# all_line_metrics = [("score", "Score"), ("reward", "Reward")] + [
+#     (m, m.replace("_", " ").title()) for m in combined_metrics
+# ]
+# for metric_label, title in all_line_metrics:
+#     plt.figure()
+#     for agent in df["agent"].unique():
+#         agent_df = df[df["agent"] == agent]
+#         plt.plot(agent_df["episode"], agent_df[metric_label], label=agent)
+#     plt.title(f"{title} per Episode")
+#     plt.xlabel("Episode")
+#     plt.ylabel(title)
+#     plt.legend()
+#     plt.tight_layout()
+#     fname = os.path.join(RESULTS_DIR, f"per_episode_{metric_label}.png")
+#     plt.savefig(fname)
+#     print(f"Saved {fname}")

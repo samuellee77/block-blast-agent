@@ -162,6 +162,7 @@ class BDQAgent:
         eps_end: float = 0.05,
         eps_decay_steps: int = 200_000,
     ):
+        self.device = DEVICE
         self.net = BDQ().to(DEVICE)
         self.target = BDQ().to(DEVICE)
         self.target.load_state_dict(self.net.state_dict())
@@ -184,32 +185,28 @@ class BDQAgent:
         return self.eps_start + frac * (self.eps_end - self.eps_start)
 
     @th.no_grad()
-    def select_action(self, env: BlockGameEnv, obs: dict):
+    def select_action(self, env, obs, step: int | None = None):
         """
-        Epsilon-greedy over valid actions.
-        env: underlying BlockGameEnv (NOT Monitor)
-        obs: dict observation from env._get_observation()
+        env  : BlockGameEnv (NOT vec env)
+        obs  : one observation dict from env._get_observation()
+        step : current global step (optional)
+        Returns: (shape_idx, row, col)
         """
-        self.total_steps += 1
+        # 1) Get all valid (shape,row,col) from the game state
+        valid_triplets = env.game_state.get_valid_actions()
+
+        if not valid_triplets:
+            # Very rare fallback; shouldn't really happen due to shape generator
+            return 0, 0, 0
+
+        # 2) ε-greedy
         eps = self.epsilon()
-
-        # 1) valid flat actions, then decode to (shape,row,col)
-        flat_valids = env.get_valid_actions()  # list[int]
-        if not flat_valids:
-            # Fallback: should be rare because generator avoids dead states
-            a_flat = random.randrange(env.action_space.n)
-            si, r, c = env._decode_action(a_flat)
-            return si, r, c
-
-        valid_triplets = [env._decode_action(a) for a in flat_valids]
-
-        # 2) ε-greedy random among valid actions
         if random.random() < eps:
             return random.choice(valid_triplets)
 
-        # 3) greedy action: compute Q_total only once, then loop over valids
+        # 3) Greedy BDQ over valid triplets
         o = {
-            k: th.tensor(obs[k], dtype=th.float32, device=DEVICE).unsqueeze(0)
+            k: th.tensor(obs[k], dtype=th.float32, device=self.device).unsqueeze(0)
             for k in obs
         }
         q_s, q_r, q_c = self.net(o)  # (1,3), (1,8), (1,8)
@@ -217,15 +214,19 @@ class BDQAgent:
         q_r = q_r[0].cpu().numpy()
         q_c = q_c[0].cpu().numpy()
 
-        best = None
+        best_triplet = None
         best_q = -1e9
-        for si, r, c in valid_triplets:
+        for (si, r, c) in valid_triplets:
             q = q_s[si] + q_r[r] + q_c[c]
             if q > best_q:
                 best_q = q
-                best = (si, r, c)
+                best_triplet = (si, r, c)
 
-        return best
+        if best_triplet is None:
+            best_triplet = random.choice(valid_triplets)
+
+        return best_triplet
+
 
     def train_step(self):
         if len(self.buffer) < self.batch_size:
@@ -269,7 +270,9 @@ class BDQAgent:
 
             target = r + (1.0 - d) * self.gamma * q_next
 
-        loss = F.smooth_l1_loss(q_sa, target)
+        q_sa_clamped = th.clamp(q_sa, -1e3, 1e3)
+        target_clamped = th.clamp(target, -1e3, 1e3)
+        loss = F.smooth_l1_loss(q_sa_clamped, target_clamped)
 
         self.optim.zero_grad()
         loss.backward()
@@ -282,6 +285,11 @@ class BDQAgent:
         with th.no_grad():
             for p, tp in zip(self.net.parameters(), self.target.parameters()):
                 tp.data.lerp_(p.data, self.tau)
+        with th.no_grad():
+            qs_dbg, qr_dbg, qc_dbg = self.net(s)
+            q_mag = (qs_dbg.abs().max() + qr_dbg.abs().max() + qc_dbg.abs().max()).item()
+            if q_mag > 1e4:
+                print(f"[WARN] Q magnitude exploding: {q_mag:.2e}")
 
 
 # ----------------------------------------------------------------------
@@ -289,7 +297,7 @@ class BDQAgent:
 # ----------------------------------------------------------------------
 def train_bdq(
     total_steps: int = 1_000_000,
-    log_every: int = 5_000,
+    log_every: int = 1_000,
     save_dir: str = None,
 ):
     if save_dir is None:
@@ -298,7 +306,7 @@ def train_bdq(
     os.makedirs(save_dir, exist_ok=True)
 
     env = Monitor(BlockGameEnv(render_mode=None))
-    agent = BDQAgent()
+    agent = BDQAgent(lr=3e-5, gamma=0.95)
     obs, _ = env.reset()
 
     ep_return, ep_len = 0.0, 0
@@ -324,8 +332,8 @@ def train_bdq(
         agent.train_step()
 
         if done or truncated:
-            print(f"[Episode ended] step={step} return={ep_return:.2f} length={ep_len}")
-            # Save to logs
+            # print(f"[Episode ended] step={step} return={ep_return:.2f} length={ep_len}")
+            # # Save to logs
             episode_scores.append(ep_return)
             obs, _ = env.reset()
             ep_return, ep_len = 0.0, 0
@@ -426,5 +434,4 @@ class BDQPolicyWrapper:
 
 
 if __name__ == "__main__":
-    # You can lower this for a quick sanity test, e.g., 100_000
-    train_bdq(total_steps=500_000)
+    train_bdq(total_steps=5000000)

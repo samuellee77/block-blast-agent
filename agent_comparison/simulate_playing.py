@@ -19,7 +19,8 @@ sys.modules["numpy._core.numeric"] = numpy.core.numeric
 
 from blockblast_game.game_env import BlockGameEnv
 from agents.dqn_masked_agent import MaskableDQN  # Import the custom MaskableDQN class
-from agents.bdq_agent import BDQPolicyWrapper
+from agents.alphazero_mcts_agent import AlphaZeroMCTSPolicyWrapper
+
 
 # Define directories
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -81,7 +82,7 @@ def run_agent(
                     )
                 else:
                     action, _ = agent.predict(obs, deterministic=True)
-
+        
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
             total_steps += 1
@@ -138,17 +139,31 @@ def main():
     else:
         logging.warning(f"Masked DQN model not found at {masked_dqn_file}")
     
-    bdq_file = model_path("bdq_model.pt")
-    if os.path.isfile(bdq_file):
-        agents["BDQ"] = BDQPolicyWrapper(bdq_file, device="cpu")
+    # bdq_file = model_path("bdq_model.pt")
+    # if os.path.isfile(bdq_file):
+    #     agents["BDQ"] = BDQPolicyWrapper(bdq_file, device="cpu")
+    # else:
+    #     logging.warning(f"BDQ model not found at {bdq_file}")
+    from agents.alphazero_mcts_agent import AlphaZeroMCTSPolicyWrapper
+
+    # ... existing code ...
+
+    # AlphaZero-MCTS (NN-only) — uses only the neural net policy
+    az_model_path = model_path("alphazero_mcts_model.pt")
+    if os.path.isfile(az_model_path):
+        agents["AlphaZero-MCTS (NN)"] = AlphaZeroMCTSPolicyWrapper(
+            az_model_path, device="cpu"
+        )
     else:
-        logging.warning(f"BDQ model not found at {bdq_file}")
+        logging.warning(f"AlphaZero-MCTS model not found at {az_model_path}")
+
+
 
     # Run experiments
     all_results = {}
     for name, agent in agents.items():
         logging.info(f"Starting runs for {name}")
-        use_masks = name in ["Masked PPO", "Masked DQN", "BDQ"]
+        use_masks = name in ["Masked PPO", "Masked DQN", "AlphaZero-MCTS (NN)"]
         results = run_agent(
             env,
             agent,
