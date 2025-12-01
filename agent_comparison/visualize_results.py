@@ -65,7 +65,7 @@ plt.savefig(combined_fname)
 print(f"Saved {combined_fname}")
 
 # Detailed comparison: Random vs Masked PPO vs Masked DQN
-compare_agents = ["Random", "Masked PPO", "Masked DQN", "AlphaZero-MCTS"]
+compare_agents = ["Random", "AlphaZero-MCTS"]
 subset_grouped = df[df["agent"].isin(compare_agents)].groupby("agent").mean()
 compare_metrics = [
     ("score", "Average Score"),
@@ -93,7 +93,7 @@ for metric, title in compare_metrics:
 
 # Original histogram: Random vs Masked PPO vs Masked DQN
 plt.figure()
-compare_agents = ["Random", "Masked PPO", "Masked DQN", "AlphaZero-MCTS"]
+compare_agents = ["Random", "AlphaZero-MCTS"]
 for agent in compare_agents:
     scores = df[df["agent"] == agent]["score"]
     plt.hist(scores, bins=20, alpha=0.5, label=agent)

@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 import random
 import statistics
 
@@ -29,7 +30,7 @@ def run_random_episode(max_moves: int = 500) -> float:
 
         moves += 1
 
-    return float(state.score)
+    return float(state.score), moves
 
 
 def run_mcts_episode(
@@ -58,7 +59,7 @@ def run_mcts_episode(
 
         moves += 1
 
-    return float(state.score)
+    return float(state.score), moves
 
 
 def evaluate(
@@ -71,9 +72,11 @@ def evaluate(
 ):
     # 1) Random baseline
     random_scores = []
+    random_moves = []
     for ep in range(num_episodes):
-        s = run_random_episode(max_moves=max_moves)
+        s, m = run_random_episode(max_moves=max_moves)
         random_scores.append(s)
+        random_moves.append(m)
         if (ep + 1) % 20 == 0:
             print(f"[Random] ep={ep+1}/{num_episodes}  last_score={s:.2f}")
 
@@ -87,9 +90,11 @@ def evaluate(
     )
 
     az_scores = []
+    az_moves = []
     for ep in range(num_episodes):
-        s = run_mcts_episode(mcts_agent, max_moves=max_moves)
+        s, m = run_mcts_episode(mcts_agent, max_moves=max_moves)
         az_scores.append(s)
+        az_moves.append(m)
         if (ep + 1) % 20 == 0:
             print(f"[AZ-MCTS Search] ep={ep+1}/{num_episodes}  last_score={s:.2f}")
 
@@ -104,10 +109,22 @@ def evaluate(
             f"{name}: mean={mean:.2f}  std={stdev:.2f}  "
             f"min={min(scores):.2f}  max={max(scores):.2f}"
         )
-
+    def save(method, scores, moves):
+        df = pd.DataFrame({
+            'method': method,
+            "scores": scores,
+            "moves": moves
+        })
+        return df
+    random_df = save("random", random_scores, random_moves)
+    random_df.to_csv("./random_results.csv", index=False)
+    az_df = save("MCTS", az_scores, az_moves)
+    az_df.to_csv("./mcts_results.csv", index=False)
     print("\n=== Evaluation Summary (BlockGameState + MCTS) ===")
-    summary("Random", random_scores)
-    summary("AlphaZero-MCTS Search", az_scores)
+    summary("Random Scores:", random_scores)
+    summary("Random Moves:", random_moves)
+    summary("AlphaZero-MCTS Search Scores:", az_scores)
+    summary("AlphaZero-MCTS Search Moves:", az_moves)
 
 
 if __name__ == "__main__":
@@ -124,9 +141,9 @@ if __name__ == "__main__":
 
     evaluate(
         model_path=model_path,
-        num_episodes=200,
+        num_episodes=500,
         max_moves=500,
-        num_simulations=128,
+        num_simulations=64,
         c_puct=1.5,
         value_scale=100.0,
     )
